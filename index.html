@@ -2,133 +2,121 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>电流监测图表</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电流数据图表</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.0/dist/av-min.js"></script>
   <style>
     body {
       font-family: sans-serif;
-      padding: 20px;
-      max-width: 800px;
-      margin: auto;
+      padding: 1rem;
+    }
+    #deviceSelect {
+      margin-bottom: 1rem;
     }
     canvas {
-      margin-top: 30px;
-    }
-    select {
-      padding: 5px;
-      font-size: 16px;
+      max-width: 100%;
     }
   </style>
 </head>
 <body>
-  <h2>设备电流图表（CurrentData）</h2>
-
-  <label for="deviceSelect">选择设备 ID：</label>
+  <h1>电流历史折线图</h1>
+  <label for="deviceSelect">选择设备：</label>
   <select id="deviceSelect"></select>
-
-  <canvas id="currentChart" width="800" height="400"></canvas>
+  <canvas id="myChart" width="800" height="400"></canvas>
 
   <script>
-    const appId = "bOJAr1GSAwLB55qdhahyz0tp-gzGzoHsz";
-    const appKey = "gc9TLLQQwb6pYMFF8kpFJlLh";
-    const baseUrl = "https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/CurrentData";
-
-    const headers = {
-      "X-LC-Id": appId,
-      "X-LC-Key": appKey,
-      "Content-Type": "application/json"
-    };
-
-    const deviceSelect = document.getElementById("deviceSelect");
-    const ctx = document.getElementById("currentChart").getContext("2d");
-
-    let chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [{
-          label: "电流 (A)",
-          data: [],
-          borderColor: "blue",
-          fill: false,
-          tension: 0.2
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: {
-            type: "time",
-            time: {
-              tooltipFormat: "yyyy-MM-dd HH:mm:ss",
-              displayFormats: {
-                minute: "HH:mm",
-                hour: "HH:mm"
-              }
-            },
-            title: {
-              display: true,
-              text: "时间戳"
-            }
-          },
-          y: {
-            title: {
-              display: true,
-              text: "电流 (A)"
-            }
-          }
-        }
-      }
+    // LeanCloud 初始化
+    AV.init({
+      appId: "bOJAr1GSAwLB55qdhahyz0tp-gzGzoHsz",
+      appKey: "gc9TLLQQwb6pYMFF8kpFJlLh",
+      serverURL: "https://bojar1gs.lc-cn-n1-shared.com"
     });
 
+    const CurrentData = AV.Object.extend("CurrentData");
+    const chartCtx = document.getElementById("myChart").getContext("2d");
+    let myChart;
+
+    const deviceSelect = document.getElementById("deviceSelect");
+
     async function fetchDeviceIds() {
-      const queryUrl = `${baseUrl}?limit=1000&keys=deviceId`;
-      const res = await fetch(queryUrl, { headers });
-      const json = await res.json();
-
-      const ids = [...new Set(json.results.map(d => d.deviceId))];
+      const query = new AV.Query("CurrentData");
+      query.limit(1000);
+      query.select("deviceId");
+      query.descending("createdAt");
+      const results = await query.find();
+      const ids = [...new Set(results.map(r => r.get("deviceId")))];
       ids.forEach(id => {
-        const option = document.createElement("option");
-        option.value = id;
-        option.textContent = id;
-        deviceSelect.appendChild(option);
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = id;
+        deviceSelect.appendChild(opt);
       });
-
-      if (ids.length > 0) {
-        loadChartData(ids[0]); // 默认加载第一个设备
-      }
+      if (ids.length) loadChartData(ids[0]);
     }
 
     async function loadChartData(deviceId) {
-      const url = `${baseUrl}?where=${encodeURIComponent(JSON.stringify({ deviceId }))}&limit=500&order=-timestamp`;
-      const res = await fetch(url, { headers });
-      const json = await res.json();
-
-      const results = json.results.reverse(); // 时间升序
+      const query = new AV.Query("CurrentData");
+      query.equalTo("deviceId", deviceId);
+      query.descending("timestamp");
+      query.limit(500);
+      const results = await query.find();
+      const reversed = results.reverse();
 
       const labels = [];
-      const values = [];
+      const data = [];
 
-      results.forEach(entry => {
-        if (entry.timestamp && entry.currents) {
-          const ts = new Date(entry.timestamp.iso);
-          const averageCurrent = entry.currents
-            .split("_")
-            .map(Number)
-            .reduce((a, b) => a + b, 0) / entry.currents.split("_").length;
-
-          labels.push(ts);
-          values.push(averageCurrent.toFixed(3));
-        }
+      reversed.forEach(entry => {
+        const ts = new Date(new Date(entry.get("timestamp").iso).getTime() + 8 * 60 * 60 * 1000);
+        labels.push(ts.toLocaleString("zh-CN"));
+        const values = entry.get("currents").split("_").map(parseFloat);
+        const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+        data.push(avg);
       });
 
-      chart.data.labels = labels;
-      chart.data.datasets[0].data = values;
-      chart.update();
+      if (myChart) myChart.destroy();
+      myChart = new Chart(chartCtx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "平均电流 (A)",
+            data,
+            borderColor: "#007bff",
+            backgroundColor: "rgba(0, 123, 255, 0.2)",
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => `电流: ${ctx.parsed.y.toFixed(2)} A`
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "时间 (北京时间)"
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "平均电流 (A)"
+              }
+            }
+          }
+        }
+      });
     }
 
-    deviceSelect.addEventListener("change", () => {
-      loadChartData(deviceSelect.value);
+    deviceSelect.addEventListener("change", e => {
+      loadChartData(e.target.value);
     });
 
     fetchDeviceIds();
