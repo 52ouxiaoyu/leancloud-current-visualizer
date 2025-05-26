@@ -42,6 +42,10 @@
         <label for="deviceSelect">选择设备：</label>
         <select id="deviceSelect"></select>
       </div>
+      <div>
+        <label for="dateSelect">选择日期：</label>
+        <input type="date" id="dateSelect">
+      </div>
       <button id="refreshBtn">刷新数据</button>
     </div>
     <div class="chart-container">
@@ -91,7 +95,27 @@
 
     async function fetchData() {
       const deviceId = document.getElementById('deviceSelect').value;
+      const dateInput = document.getElementById('dateSelect').value;
       let url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=${limit}&order=-timestamp`;
+      
+      if (dateInput) {
+        const date = new Date(dateInput);
+        const nextDay = new Date(date);
+        nextDay.setDate(date.getDate() + 1);
+        
+        const where = {
+          timestamp: {
+            $gte: { __type: "Date", iso: date.toISOString() },
+            $lt: { __type: "Date", iso: nextDay.toISOString() }
+          }
+        };
+        if (deviceId) where.deviceId = deviceId;
+        
+        url += `&where=${encodeURIComponent(JSON.stringify(where))}`;
+      } else if (deviceId) {
+        const where = encodeURIComponent(JSON.stringify({ deviceId }));
+        url += `&where=${where}`;
+      }
       if (deviceId) {
         const where = encodeURIComponent(JSON.stringify({ deviceId }));
         url += `&where=${where}`;
@@ -211,10 +235,18 @@
       updateTimeRange();
     }
 
+    function setDefaultDate() {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      document.getElementById('dateSelect').value = dateStr;
+    }
+
     async function initialize() {
       await updateDeviceSelect();
+      setDefaultDate();
       document.getElementById('timeRange').addEventListener('input', updateTimeRange);
       document.getElementById('deviceSelect').addEventListener('change', refreshData);
+      document.getElementById('dateSelect').addEventListener('change', refreshData);
       document.getElementById('refreshBtn').addEventListener('click', refreshData);
       await refreshData();
 
