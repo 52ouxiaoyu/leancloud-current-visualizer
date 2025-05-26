@@ -6,19 +6,91 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- 日期适配器 -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    .container {
+      width: 90%;
+      margin: 20px auto;
+    }
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .slider-container {
+      margin: 20px 0;
+      flex-grow: 1;
+    }
+    #timeRange {
+      width: 100%;
+    }
+    .chart-container {
+      height: 60vh;
+      position: relative;
+    }
+    select {
+      padding: 5px;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
-  <h2>电流折线图</h2>
-  <canvas id="chart" width="800" height="400"></canvas>
+  <div class="container">
+    <h2>电流采样图（每秒数据）</h2>
+    <div class="controls">
+      <div>
+        <label for="deviceSelect">选择设备：</label>
+        <select id="deviceSelect"></select>
+      </div>
+      <button id="refreshBtn">刷新数据</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="slider-container">
+      <input type="range" id="timeRange" min="0" max="100" value="100">
+      <div id="rangeLabel">显示最近数据</div>
+    </div>
+  </div>
+
   <script>
-    // 你的 LeanCloud 配置信息
+    // 配置信息
     const appId = 'bOJAr1GSAwLB55qdhahyz0tp-gzGzoHsz';
     const appKey = 'gc9TLLQQwb6pYMFF8kpFJlLh';
-    const className = 'CurrentData'; // 你的 Class 名称
-    const deviceId = '8C4F00B1B338'; // 你的设备ID
-    const limit = 500; // 取最近500条数据
+    const className = 'CurrentData';
+    const limit = 1000;
+    let chart;
+    let allData = [];
+
+    // 获取所有设备ID
+    async function fetchDevices() {
+      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=1000&keys=deviceId`;
+      const res = await fetch(url, {
+        headers: {
+          'X-LC-Id': appId,
+          'X-LC-Key': appKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (!data.results) return [];
+      
+      // 获取唯一的设备ID列表
+      const devices = [...new Set(data.results.map(item => item.deviceId))];
+      return devices.filter(id => id); // 过滤掉空值
+    }
+
+    // 更新设备选择下拉框
+    async function updateDeviceSelect() {
+      const devices = await fetchDevices();
+      const select = document.getElementById('deviceSelect');
+      select.innerHTML = devices.map(id => 
+        `<option value="${id}"${id === '8C4F00B1B338' ? ' selected' : ''}>${id}</option>`
+      ).join('');
+    }
 
     async function fetchData() {
+      const deviceId = document.getElementById('deviceSelect').value;
       let url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=${limit}&order=-timestamp`;
       if (deviceId) {
         const where = encodeURIComponent(JSON.stringify({ deviceId }));
@@ -37,56 +109,78 @@
         console.error('数据格式错误', data);
         return [];
       }
-      return data.results.map(entry => ({
-        time: new Date(entry.timestamp.iso),
-        current: parseFloat(entry.currents.split('_').slice(-1)[0])
-      })).reverse();
+
+      // 处理每分钟的数据，拆分成每秒
+      return data.results.flatMap(entry => {
+        const currents = entry.currents.split('_').map(Number);
+        const timestamp = new Date(entry.timestamp.iso);
+        return currents.map((current, index) => ({
+          time: new Date(timestamp.getTime() - (currents.length - 1 - index) * 1000),
+          current: current
+        }));
+      }).sort((a, b) => a.time - b.time);
     }
 
-    async function renderChart() {
-      const data = await fetchData();
+    function updateChart(data) {
       const ctx = document.getElementById('chart').getContext('2d');
-      new Chart(ctx, {
+      
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: data.map(d => d.time),
           datasets: [{
             label: '电流 (A)',
-            data: data.map(d => d.current),
-            borderColor: 'blue',
+            data: data.map(d => ({
+              x: d.time,
+              y: d.current
+            })),
+            borderColor: 'rgb(75, 192, 192)',
+            borderWidth: 1,
+            pointRadius: 2,
             fill: false,
             tension: 0.1
           }]
         },
         options: {
           responsive: true,
-          parsing: false,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
           scales: {
             x: {
               type: 'time',
               time: {
-                tooltipFormat: 'yyyy-MM-dd HH:mm:ss',
-                unit: 'minute',
+                unit: 'second',
                 displayFormats: {
+                  second: 'HH:mm:ss',
                   minute: 'HH:mm'
-                }
+                },
+                tooltipFormat: 'yyyy-MM-dd HH:mm:ss'
               },
               title: {
                 display: true,
-                text: '时间 (中国时区)'
+                text: '时间'
               }
             },
             y: {
               title: {
                 display: true,
                 text: '电流 (A)'
+              },
+              ticks: {
+                callback: value => value.toFixed(2)
               }
             }
           },
           plugins: {
             tooltip: {
               callbacks: {
-                label: ctx => `电流: ${ctx.parsed.y.toFixed(3)} A`
+                label: context => `电流: ${context.parsed.y.toFixed(2)} A`
               }
             }
           }
@@ -94,7 +188,40 @@
       });
     }
 
-    renderChart();
+    function updateTimeRange() {
+      const slider = document.getElementById('timeRange');
+      const label = document.getElementById('rangeLabel');
+      const percentage = slider.value;
+      
+      const dataToShow = allData.slice(
+        Math.floor(allData.length * (100 - percentage) / 100)
+      );
+      
+      const timeRange = dataToShow.length > 0 
+        ? `${dataToShow[0].time.toLocaleTimeString()} - ${dataToShow[dataToShow.length-1].time.toLocaleTimeString()}`
+        : '无数据';
+      
+      label.textContent = `显示时间范围: ${timeRange} (${dataToShow.length} 条数据)`;
+      updateChart(dataToShow);
+    }
+
+    async function refreshData() {
+      allData = await fetchData();
+      updateTimeRange();
+    }
+
+    async function initialize() {
+      await updateDeviceSelect();
+      document.getElementById('timeRange').addEventListener('input', updateTimeRange);
+      document.getElementById('deviceSelect').addEventListener('change', refreshData);
+      document.getElementById('refreshBtn').addEventListener('click', refreshData);
+      await refreshData();
+
+      // 每分钟自动刷新数据
+      setInterval(refreshData, 60000);
+    }
+
+    initialize();
   </script>
 </body>
 </html>
