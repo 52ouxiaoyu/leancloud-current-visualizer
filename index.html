@@ -98,27 +98,23 @@
       const dateInput = document.getElementById('dateSelect').value;
       let url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=${limit}&order=-timestamp`;
       
+      const where = {};
+      if (deviceId) {
+        where.deviceId = deviceId;
+      }
       if (dateInput) {
         const date = new Date(dateInput);
         const nextDay = new Date(date);
         nextDay.setDate(date.getDate() + 1);
         
-        const where = {
-          timestamp: {
-            $gte: { __type: "Date", iso: date.toISOString() },
-            $lt: { __type: "Date", iso: nextDay.toISOString() }
-          }
+        where.timestamp = {
+          $gte: { __type: "Date", iso: date.toISOString() },
+          $lt: { __type: "Date", iso: nextDay.toISOString() }
         };
-        if (deviceId) where.deviceId = deviceId;
-        
-        url += `&where=${encodeURIComponent(JSON.stringify(where))}`;
-      } else if (deviceId) {
-        const where = encodeURIComponent(JSON.stringify({ deviceId }));
-        url += `&where=${where}`;
       }
-      if (deviceId) {
-        const where = encodeURIComponent(JSON.stringify({ deviceId }));
-        url += `&where=${where}`;
+      
+      if (Object.keys(where).length > 0) {
+        url += `&where=${encodeURIComponent(JSON.stringify(where))}`;
       }
 
       const res = await fetch(url, {
