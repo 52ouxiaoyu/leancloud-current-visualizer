@@ -152,7 +152,7 @@
         type: 'line',
         data: {
           datasets: [{
-            label: '电流 (A)',
+            label: '电流 (mA)',
             data: data.map(d => ({
               x: d.time,
               y: d.current
@@ -191,7 +191,7 @@
             y: {
               title: {
                 display: true,
-                text: '电流 (A)'
+                text: '电流 (mA)'
               },
               ticks: {
                 callback: value => value.toFixed(2)
