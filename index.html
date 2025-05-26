@@ -1,1 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>设备电流数据折线图</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2em; background: #f4f4f4; }
+    #chart-container { width: 100%; max-width: 1000px; margin: auto; background: white; padding: 1em; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    canvas { width: 100%; height: 400px; }
+    input, button { padding: 0.5em; margin: 0.5em; }
+  </style>
+</head>
+<body>
+  <div id="chart-container">
+    <h2>设备电流变化趋势图</h2>
+    <label for="deviceId">Device ID: </label>
+    <input type="text" id="deviceId" value="8C4F00B1B338">
+    <button onclick="loadData()">加载数据</button>
+    <canvas id="currentChart"></canvas>
+  </div>
 
+  <script>
+    const APP_ID = "bOJAr1GSAwLB55qdhahyz0tp-gzGzoHsz";
+    const APP_KEY = "gc9TLLQQwb6pYMFF8kpFJlLh";
+    const BASE_URL = "https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/CurrentData";
+
+    async function loadData() {
+      const deviceId = document.getElementById("deviceId").value;
+      const res = await fetch(`${BASE_URL}?limit=500&order=-timestamp&where=${encodeURIComponent(JSON.stringify({ deviceId }))}`, {
+        headers: {
+          "X-LC-Id": APP_ID,
+          "X-LC-Key": APP_KEY,
+          "Content-Type": "application/json"
+        }
+      });
+
+      const data = await res.json();
+      const timestamps = [];
+      const values = [];
+
+      data.results.reverse().forEach(entry => {
+        timestamps.push(new Date(entry.timestamp.iso).toLocaleString());
+
+        const last = entry.currents.trim().split("_").filter(v => v).map(Number);
+        const avg = last.reduce((a, b) => a + b, 0) / last.length;
+        values.push(avg.toFixed(2));
+      });
+
+      drawChart(timestamps, values);
+    }
+
+    let chart;
+    function drawChart(labels, data) {
+      const ctx = document.getElementById('currentChart').getContext('2d');
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '平均电流值 (mA)',
+            data,
+            fill: false,
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.2
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: '时间' } },
+            y: { title: { display: true, text: '电流 (mA)' } }
+          }
+        }
+      });
+    }
+
+    // 自动加载默认设备数据
+    loadData();
+  </script>
+</body>
+</html>
