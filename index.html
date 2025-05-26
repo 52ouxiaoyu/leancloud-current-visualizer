@@ -1,139 +1,102 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>电流数据可视化</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电流数据图表</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/utc.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js"></script>
-  <script>
-    dayjs.extend(dayjs_plugin_utc);
-    dayjs.extend(dayjs_plugin_timezone);
-  </script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    canvas { max-width: 100%; height: auto; }
+    select { padding: 5px; margin-bottom: 20px; }
+  </style>
 </head>
 <body>
-  <h2>设备电流数据可视化</h2>
-
-  <label for="deviceSelect">选择设备：</label>
-  <select id="deviceSelect"></select>
-
-  <canvas id="currentChart" width="800" height="400"></canvas>
+  <h2>设备电流数据图表</h2>
+  <label for="deviceIdSelect">选择设备 ID：</label>
+  <select id="deviceIdSelect"></select>
+  <canvas id="currentChart"></canvas>
 
   <script>
-    const appId = 'bOJAr1GSAwLB55qdhahyz0tp-gzGzoHsz';
-    const appKey = 'gc9TLLQQwb6pYMFF8kpFJlLh';
-    const serverURL = 'https://bojar1gs.lc-cn-n1-shared.com';
+    const APP_ID = 'bOJAr1GSAwLB55qdhahyz0tp-gzGzoHsz';
+    const APP_KEY = 'gc9TLLQQwb6pYMFF8kpFJlLh';
+    const BASE_URL = 'https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/CurrentData';
 
-    const className = 'CurrentData';
-    const limit = 500;
+    const headers = {
+      'X-LC-Id': APP_ID,
+      'X-LC-Key': APP_KEY,
+      'Content-Type': 'application/json'
+    };
+
+    const chartCtx = document.getElementById('currentChart').getContext('2d');
+    let chart;
 
     async function fetchDeviceIds() {
-      const res = await fetch(`${serverURL}/1.1/classes/${className}?limit=${limit}`, {
-        headers: {
-          'X-LC-Id': appId,
-          'X-LC-Key': appKey,
-        },
-      });
-      const data = await res.json();
-      const devices = [...new Set(data.results.map(item => item.deviceId))];
-      return devices;
+      const res = await axios.get(BASE_URL + '?limit=1000&keys=deviceId', { headers });
+      const ids = [...new Set(res.data.results.map(r => r.deviceId))];
+      const select = document.getElementById('deviceIdSelect');
+      select.innerHTML = ids.map(id => `<option value="${id}">${id}</option>`).join('');
+      select.addEventListener('change', () => loadData(select.value));
+      if (ids.length > 0) loadData(ids[0]);
     }
 
-    async function fetchData(deviceId) {
-      const query = encodeURIComponent(JSON.stringify({ deviceId }));
-      const res = await fetch(`${serverURL}/1.1/classes/${className}?where=${query}&limit=${limit}&order=-timestamp`, {
-        headers: {
-          'X-LC-Id': appId,
-          'X-LC-Key': appKey,
-        },
-      });
-      const json = await res.json();
-      return json.results.reverse(); // 时间顺序正向
-    }
+    async function loadData(deviceId) {
+      const res = await axios.get(BASE_URL + `?limit=500&order=-createdAt&where=${encodeURIComponent(JSON.stringify({ deviceId }))}`, { headers });
+      const records = res.data.results.reverse(); // 时间升序
 
-    function avgCurrentFromString(currents) {
-      const values = currents.split('_').map(parseFloat);
-      const sum = values.reduce((a, b) => a + b, 0);
-      return parseFloat((sum / values.length).toFixed(3));
-    }
-
-    function renderChart(data) {
-      const chartData = data.map(item => {
-        const date = dayjs(item.timestamp.iso).utc().add(8, 'hour');
-        return {
-          x: date.toDate(),
-          y: avgCurrentFromString(item.currents)
-        };
+      let points = [];
+      records.forEach(r => {
+        const baseTime = new Date(r.timestamp.iso);
+        const currents = r.currents.split('_').map(parseFloat);
+        currents.forEach((val, i) => {
+          const time = new Date(baseTime.getTime() + i * 1000); // 假设 1 秒间隔
+          const localTime = new Date(time.getTime() + 8 * 60 * 60 * 1000); // 转为北京时间
+          points.push({ x: localTime, y: val });
+        });
       });
 
-      const ctx = document.getElementById('currentChart').getContext('2d');
-      if (window.currentChart) window.currentChart.destroy();
-      window.currentChart = new Chart(ctx, {
+      updateChart(points);
+    }
+
+    function updateChart(dataPoints) {
+      if (chart) chart.destroy();
+      chart = new Chart(chartCtx, {
         type: 'line',
         data: {
           datasets: [{
-            label: '平均电流',
-            data: chartData,
+            label: '采样电流 (A)',
+            data: dataPoints,
             borderColor: 'blue',
-            fill: false,
-            tension: 0.1
+            tension: 0.2
           }]
         },
         options: {
-          parsing: false,
           scales: {
             x: {
               type: 'time',
               time: {
-                unit: 'minute',
-                tooltipFormat: 'YYYY-MM-DD HH:mm:ss',
+                tooltipFormat: 'yyyy-MM-dd HH:mm:ss',
                 displayFormats: {
-                  minute: 'HH:mm'
+                  second: 'HH:mm:ss'
                 }
               },
-              title: {
-                display: true,
-                text: '时间（北京时间）'
-              }
+              title: { display: true, text: '时间 (北京时间)' }
             },
             y: {
-              title: {
-                display: true,
-                text: '平均电流 (A)'
-              }
+              title: { display: true, text: '电流 (A)' }
             }
+          },
+          responsive: true,
+          plugins: {
+            legend: { display: true },
+            tooltip: { mode: 'index', intersect: false }
           }
         }
       });
     }
 
-    async function init() {
-      const deviceSelect = document.getElementById('deviceSelect');
-      const deviceIds = await fetchDeviceIds();
-
-      deviceIds.forEach(id => {
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = id;
-        deviceSelect.appendChild(option);
-      });
-
-      deviceSelect.addEventListener('change', async () => {
-        const deviceId = deviceSelect.value;
-        const data = await fetchData(deviceId);
-        renderChart(data);
-      });
-
-      if (deviceIds.length > 0) {
-        deviceSelect.value = deviceIds[0];
-        const data = await fetchData(deviceIds[0]);
-        renderChart(data);
-      }
-    }
-
-    init();
+    fetchDeviceIds();
   </script>
 </body>
 </html>
