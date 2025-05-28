@@ -68,7 +68,7 @@
 
     // 获取所有设备ID
     async function fetchDevices() {
-      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=1000&keys=deviceId`;
+      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery?cql=${encodeURIComponent('select distinct deviceId from CurrentData')}`;
       const res = await fetch(url, {
         headers: {
           'X-LC-Id': appId,
@@ -79,9 +79,9 @@
       const data = await res.json();
       if (!data.results) return [];
       
-      // 获取唯一的设备ID列表
-      const devices = [...new Set(data.results.map(item => item.deviceId))];
-      return devices.filter(id => id); // 过滤掉空值
+      return data.results
+        .map(item => item.deviceId)
+        .filter(id => id); // 过滤掉空值
     }
 
     // 更新设备选择下拉框
