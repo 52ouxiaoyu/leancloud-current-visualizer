@@ -80,7 +80,7 @@
     // 获取所有设备ID
     async function fetchDevices() {
       const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery`;
-      const cql = 'select distinct deviceId from CurrentData';
+      const cql = 'select distinct deviceid from CurrentData';
       
       const res = await fetch(url, {
         method: 'POST',
