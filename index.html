@@ -74,22 +74,25 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.2';
+    const version = 'v1.0.3';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID
     async function fetchDevices() {
-      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery`;
-      const cql = 'select distinct deviceid from CurrentData';
+      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=1000`;
+      const where = {
+        deviceId: {
+          $exists: true
+        }
+      };
+      const url_with_where = `${url}&where=${encodeURIComponent(JSON.stringify(where))}&keys=deviceId`;
       
-      const res = await fetch(url, {
-        method: 'POST',
+      const res = await fetch(url_with_where, {
         headers: {
           'X-LC-Id': appId,
           'X-LC-Key': appKey,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ cql })
+        }
       });
       
       if (!res.ok) {
@@ -100,10 +103,11 @@
       const data = await res.json();
       if (!data.results) return [];
       
-      return data.results
-        .map(item => item.deviceId)
-        .filter(id => id); // 过滤掉空值
+      // 获取不重复的设备ID
+      const uniqueDevices = [...new Set(data.results.map(item => item.deviceId))];
+      return uniqueDevices.filter(id => id); // 过滤掉空值
     }
+
 
     // 更新设备选择下拉框
     async function updateDeviceSelect() {
