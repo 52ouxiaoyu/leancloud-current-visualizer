@@ -120,10 +120,12 @@
       }
       if (dateInput) {
         const date = new Date(dateInput);
-        // 构造当天0点的UTC时间和下一天0点的UTC时间
-        const startUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-        const endUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() + 1));
-        
+        // 本地时间当天 0 点
+        const startLocal = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+        // 转为 UTC 时间
+        const startUTC = new Date(startLocal.getTime() - 8 * 60 * 60 * 1000);
+        const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000);
+
         where.timestamp = {
           $gte: { __type: "Date", iso: startUTC.toISOString() },
           $lt: { __type: "Date", iso: endUTC.toISOString() }
