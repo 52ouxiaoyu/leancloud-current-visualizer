@@ -74,12 +74,12 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.5';
+    const version = 'v1.0.6';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（使用 LeanCloud cloudQuery API）
     async function fetchDevices() {
-      const url = 'https://bOJAr1GSAwLB55qdhahyz0tp.api.lncldglobal.com/1.1/cloudQuery';
+      const url = 'https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery';
       const cql = 'select distinct deviceId from CurrentData';
 
       const res = await fetch(url, {
