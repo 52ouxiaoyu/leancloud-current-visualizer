@@ -77,9 +77,9 @@
     const version = 'v1.0.7';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
-    // 获取所有设备ID（使用 REST API 查询并前端去重）
+    // 获取所有设备ID（从 DeviceRegistry 表查询）
     async function fetchDevices() {
-      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=1000&keys=deviceId`;
+      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/DeviceRegistry?limit=1000&keys=deviceId`;
       const res = await fetch(url, {
         headers: {
           'X-LC-Id': appId,
@@ -89,15 +89,14 @@
       });
 
       if (!res.ok) {
-        console.error('设备查询失败:', res.status, res.statusText);
+        console.error('查询设备列表失败:', res.status, res.statusText);
         return [];
       }
 
       const data = await res.json();
       if (!data.results) return [];
 
-      const uniqueDevices = [...new Set(data.results.map(item => item.deviceId))];
-      return uniqueDevices.filter(id => id);
+      return data.results.map(item => item.deviceId).filter(id => id);
     }
 
 
