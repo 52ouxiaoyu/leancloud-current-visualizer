@@ -68,14 +68,24 @@
 
     // 获取所有设备ID
     async function fetchDevices() {
-      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery?cql=${encodeURIComponent('select distinct deviceId from CurrentData')}`;
+      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery`;
+      const cql = 'select distinct deviceId from CurrentData';
+      
       const res = await fetch(url, {
+        method: 'POST',
         headers: {
           'X-LC-Id': appId,
           'X-LC-Key': appKey,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ cql })
       });
+      
+      if (!res.ok) {
+        console.error('获取设备ID失败:', res.status, res.statusText);
+        return [];
+      }
+      
       const data = await res.json();
       if (!data.results) return [];
       
