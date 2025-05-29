@@ -79,8 +79,12 @@
 
     // 获取所有设备ID（聚合查询）
     async function fetchDevices() {
-      const url = 'https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery';
-      const cql = 'select distinct deviceId from CurrentData';
+      const url = 'https://bojar1gs.lc-cn-n1-shared.com/1.1/aggregate/CurrentData';
+      const body = {
+        pipeline: [
+          { "$group": { "_id": "$deviceId" } }
+        ]
+      };
 
       const res = await fetch(url, {
         method: 'POST',
@@ -89,7 +93,7 @@
           'X-LC-Key': appKey,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ cql })
+        body: JSON.stringify(body)
       });
 
       if (!res.ok) {
@@ -100,9 +104,8 @@
       const data = await res.json();
       if (!data.results) return [];
 
-      // 提取非空 deviceId 并去重
-      const uniqueDevices = [...new Set(data.results.map(item => item.deviceId))];
-      return uniqueDevices.filter(id => id);
+      const uniqueDevices = data.results.map(item => item._id).filter(id => id);
+      return uniqueDevices;
     }
 
 
