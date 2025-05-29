@@ -74,38 +74,35 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.3';
+    const version = 'v1.0.4';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
-    // 获取所有设备ID
+    // 获取所有设备ID（聚合查询）
     async function fetchDevices() {
-      const url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=1000`;
-      const where = {
-        deviceId: {
-          $exists: true
-        }
-      };
-      const url_with_where = `${url}&where=${encodeURIComponent(JSON.stringify(where))}&keys=deviceId`;
-      
-      const res = await fetch(url_with_where, {
+      const url = 'https://bojar1gs.lc-cn-n1-shared.com/1.1/cloudQuery';
+      const cql = 'select distinct deviceId from CurrentData';
+
+      const res = await fetch(url, {
+        method: 'POST',
         headers: {
           'X-LC-Id': appId,
           'X-LC-Key': appKey,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ cql })
       });
-      
+
       if (!res.ok) {
-        console.error('获取设备ID失败:', res.status, res.statusText);
+        console.error('聚合查询失败:', res.status, res.statusText);
         return [];
       }
-      
+
       const data = await res.json();
       if (!data.results) return [];
-      
-      // 获取不重复的设备ID
+
+      // 提取非空 deviceId 并去重
       const uniqueDevices = [...new Set(data.results.map(item => item.deviceId))];
-      return uniqueDevices.filter(id => id); // 过滤掉空值
+      return uniqueDevices.filter(id => id);
     }
 
 
