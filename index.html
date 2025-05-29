@@ -32,6 +32,12 @@
       padding: 5px;
       font-size: 16px;
     }
+    .version {
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -55,6 +61,7 @@
       <input type="range" id="timeRange" min="0" max="100" value="100">
       <div id="rangeLabel">显示最近数据</div>
     </div>
+    <div class="version" id="versionDisplay"></div>
   </div>
 
   <script>
@@ -65,6 +72,10 @@
     const limit = 1000;
     let chart;
     let allData = [];
+
+    // 添加版本号
+    const version = 'v1.0.1';
+    document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID
     async function fetchDevices() {
