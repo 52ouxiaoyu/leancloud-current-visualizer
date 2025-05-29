@@ -74,7 +74,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.7';
+    const version = 'v1.0.8';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -120,12 +120,13 @@
       }
       if (dateInput) {
         const date = new Date(dateInput);
-        const nextDay = new Date(date);
-        nextDay.setDate(date.getDate() + 1);
+        // 构造当天0点的UTC时间和下一天0点的UTC时间
+        const startUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const endUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() + 1));
         
         where.timestamp = {
-          $gte: { __type: "Date", iso: date.toISOString() },
-          $lt: { __type: "Date", iso: nextDay.toISOString() }
+          $gte: { __type: "Date", iso: startUTC.toISOString() },
+          $lt: { __type: "Date", iso: endUTC.toISOString() }
         };
       }
       
