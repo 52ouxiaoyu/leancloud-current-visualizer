@@ -113,27 +113,23 @@
       const deviceId = document.getElementById('deviceSelect').value;
       const dateInput = document.getElementById('dateSelect').value;
       let url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=${limit}&order=-timestamp`;
-      
+
       const where = {};
       if (deviceId) {
         where.deviceId = deviceId;
       }
       if (dateInput) {
         const date = new Date(dateInput);
-        // 设置为当天的0点
         const startLocal = new Date(date);
         startLocal.setHours(0, 0, 0, 0);
-        
-        // 设置为当天的23:59:59.999
         const endLocal = new Date(date);
         endLocal.setHours(23, 59, 59, 999);
-      
         where.timestamp = {
           $gte: { __type: "Date", iso: startLocal.toISOString() },
           $lt: { __type: "Date", iso: endLocal.toISOString() }
         };
       }
-      
+
       if (Object.keys(where).length > 0) {
         url += `&where=${encodeURIComponent(JSON.stringify(where))}`;
       }
@@ -145,14 +141,14 @@
           'Content-Type': 'application/json'
         }
       });
+
       const data = await res.json();
       if (!data.results) {
         console.error('数据格式错误', data);
-        return [];
+        return { data: [], where };
       }
 
-      // 处理每分钟的数据，拆分成每秒
-      return data.results.flatMap(entry => {
+      const parsedData = data.results.flatMap(entry => {
         const currents = entry.currents.split('_').map(Number);
         const timestamp = new Date(entry.timestamp.iso);
         return currents.map((current, index) => ({
@@ -160,6 +156,8 @@
           current: current
         }));
       }).sort((a, b) => a.time - b.time);
+
+      return { data: parsedData, where };
     }
 
     function updateChart(data) {
@@ -248,12 +246,16 @@
     }
 
     async function refreshData() {
-      allData = await fetchData();
+      const result = await fetchData();
+      allData = result.data;
       updateTimeRange();
-      console.log('查询时间范围：', {
-        start: where.timestamp.$gte.iso,
-        end: where.timestamp.$lt.iso
-      });
+
+      if (result.where?.timestamp) {
+        console.log('查询时间范围：', {
+          start: result.where.timestamp.$gte.iso,
+          end: result.where.timestamp.$lt.iso
+        });
+      }
     }
 
     function setDefaultDate() {
