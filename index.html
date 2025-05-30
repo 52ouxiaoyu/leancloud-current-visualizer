@@ -17,13 +17,6 @@
       gap: 20px;
       align-items: center;
     }
-    .slider-container {
-      margin: 20px 0;
-      flex-grow: 1;
-    }
-    #timeRange {
-      width: 100%;
-    }
     .chart-container {
       height: 60vh;
       position: relative;
@@ -61,10 +54,6 @@
     <div class="chart-container">
       <canvas id="chart"></canvas>
     </div>
-    <div class="slider-container">
-      <input type="range" id="timeRange" min="0" max="100" value="100">
-      <div id="rangeLabel">显示最近数据</div>
-    </div>
     <div class="version" id="versionDisplay"></div>
   </div>
 
@@ -78,7 +67,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.13';
+    const version = 'v1.0.14';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -251,29 +240,16 @@
       });
     }
 
-    function updateTimeRange() {
-      const slider = document.getElementById('timeRange');
-      const label = document.getElementById('rangeLabel');
-      const percentage = slider.value;
-      
-      const MAX_VISIBLE = 1000;
-      const rawData = allData.slice(
-        Math.floor(allData.length * (100 - percentage) / 100)
-      );
-      const dataToShow = rawData.slice(-MAX_VISIBLE);
-      
-      const timeRange = dataToShow.length > 0 
-        ? `${dataToShow[0].time.toLocaleTimeString()} - ${dataToShow[dataToShow.length-1].time.toLocaleTimeString()}`
-        : '无数据';
-      
-      label.textContent = `显示时间范围: ${timeRange} (${dataToShow.length} 条数据)`;
-      updateChart(dataToShow);
-    }
-
     async function refreshData() {
       const result = await fetchData();
       allData = result.data;
-      updateTimeRange();
+      updateChart(allData);
+      const label = document.getElementById('rangeLabel');
+      if (label && allData.length > 0) {
+        const start = allData[0].time.toLocaleTimeString();
+        const end = allData[allData.length - 1].time.toLocaleTimeString();
+        label.textContent = `显示时间范围: ${start} - ${end} (${allData.length} 条数据)`;
+      }
 
       if (result.where?.timestamp) {
         console.log('查询时间范围：', {
@@ -292,7 +268,6 @@
     async function initialize() {
       await updateDeviceSelect();
       setDefaultDate();
-      document.getElementById('timeRange').addEventListener('input', updateTimeRange);
       document.getElementById('deviceSelect').addEventListener('change', refreshData);
       document.getElementById('dateSelect').addEventListener('change', refreshData);
       document.getElementById('refreshBtn').addEventListener('click', refreshData);
