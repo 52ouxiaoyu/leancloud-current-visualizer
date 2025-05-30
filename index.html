@@ -27,6 +27,10 @@
     .chart-container {
       height: 60vh;
       position: relative;
+      overflow-x: auto;
+    }
+    canvas#chart {
+      min-width: 1500px;
     }
     select {
       padding: 5px;
@@ -74,7 +78,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.11';
+    const version = 'v1.0.12';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -222,6 +226,11 @@
               callbacks: {
                 label: context => `电流: ${context.parsed.y.toFixed(2)} A`
               }
+            },
+            decimation: {
+              enabled: true,
+              algorithm: 'min-max',
+              samples: 1000
             }
           }
         }
@@ -233,9 +242,11 @@
       const label = document.getElementById('rangeLabel');
       const percentage = slider.value;
       
-      const dataToShow = allData.slice(
+      const MAX_VISIBLE = 1000;
+      const rawData = allData.slice(
         Math.floor(allData.length * (100 - percentage) / 100)
       );
+      const dataToShow = rawData.slice(-MAX_VISIBLE);
       
       const timeRange = dataToShow.length > 0 
         ? `${dataToShow[0].time.toLocaleTimeString()} - ${dataToShow[dataToShow.length-1].time.toLocaleTimeString()}`
