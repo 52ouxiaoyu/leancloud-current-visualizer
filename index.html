@@ -74,7 +74,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.9';
+    const version = 'v1.0.10';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -125,7 +125,7 @@
         // 转为 UTC 时间
         const startUTC = new Date(startLocal.getTime() - 8 * 60 * 60 * 1000);
         const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000);
-
+      
         where.timestamp = {
           $gte: { __type: "Date", iso: startUTC.toISOString() },
           $lt: { __type: "Date", iso: endUTC.toISOString() }
