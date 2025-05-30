@@ -74,7 +74,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.10';
+    const version = 'v1.0.11';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -120,15 +120,17 @@
       }
       if (dateInput) {
         const date = new Date(dateInput);
-        // 本地时间当天 0 点
-        const startLocal = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-        // 转为 UTC 时间
-        const startUTC = new Date(startLocal.getTime() - 8 * 60 * 60 * 1000);
-        const endUTC = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000);
+        // 设置为当天的0点
+        const startLocal = new Date(date);
+        startLocal.setHours(0, 0, 0, 0);
+        
+        // 设置为当天的23:59:59.999
+        const endLocal = new Date(date);
+        endLocal.setHours(23, 59, 59, 999);
       
         where.timestamp = {
-          $gte: { __type: "Date", iso: startUTC.toISOString() },
-          $lt: { __type: "Date", iso: endUTC.toISOString() }
+          $gte: { __type: "Date", iso: startLocal.toISOString() },
+          $lt: { __type: "Date", iso: endLocal.toISOString() }
         };
       }
       
@@ -248,6 +250,10 @@
     async function refreshData() {
       allData = await fetchData();
       updateTimeRange();
+      console.log('查询时间范围：', {
+        start: where.timestamp.$gte.iso,
+        end: where.timestamp.$lt.iso
+      });
     }
 
     function setDefaultDate() {
