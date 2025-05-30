@@ -78,7 +78,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.12';
+    const version = 'v1.0.13';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -116,7 +116,9 @@
     async function fetchData() {
       const deviceId = document.getElementById('deviceSelect').value;
       const dateInput = document.getElementById('dateSelect').value;
-      let url = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?limit=${limit}&order=-timestamp`;
+      const limit = 1000;
+      let skip = 0;
+      let urlBase = `https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/${className}?order=timestamp`;
 
       const where = {};
       if (deviceId) {
@@ -135,24 +137,36 @@
       }
 
       if (Object.keys(where).length > 0) {
-        url += `&where=${encodeURIComponent(JSON.stringify(where))}`;
+        urlBase += `&where=${encodeURIComponent(JSON.stringify(where))}`;
       }
 
-      const res = await fetch(url, {
-        headers: {
-          'X-LC-Id': appId,
-          'X-LC-Key': appKey,
-          'Content-Type': 'application/json'
+      const allResults = [];
+      let done = false;
+
+      while (!done) {
+        const url = `${urlBase}&limit=${limit}&skip=${skip}`;
+        const res = await fetch(url, {
+          headers: {
+            'X-LC-Id': appId,
+            'X-LC-Key': appKey,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await res.json();
+        if (!data.results || data.results.length === 0) {
+          break;
         }
-      });
 
-      const data = await res.json();
-      if (!data.results) {
-        console.error('数据格式错误', data);
-        return { data: [], where };
+        allResults.push(...data.results);
+        if (data.results.length < limit) {
+          done = true;
+        } else {
+          skip += limit;
+        }
       }
 
-      const parsedData = data.results.flatMap(entry => {
+      const parsedData = allResults.flatMap(entry => {
         const currents = entry.currents.split('_').map(Number);
         const timestamp = new Date(entry.timestamp.iso);
         return currents.map((current, index) => ({
