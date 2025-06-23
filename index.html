@@ -6,6 +6,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- 日期适配器 -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <!-- 添加zoom插件 -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
     .container {
       width: 90%;
@@ -67,7 +69,7 @@
     let allData = [];
 
     // 添加版本号
-    const version = 'v1.0.14';
+    const version = 'v1.0.15';
     document.getElementById('versionDisplay').textContent = `版本号: ${version}`;
 
     // 获取所有设备ID（从 DeviceRegistry 表查询）
@@ -235,6 +237,20 @@
               enabled: true,
               algorithm: 'min-max',
               samples: 1000
+            },
+            // 添加zoom配置
+            zoom: {
+              wheel: {
+                enabled: true,
+                speed: 0.1
+              },
+              pinch: {
+                enabled: true
+              },
+              mode: 'x',
+              limits: {
+                x: {min: 'original', max: 'original'}
+              }
             }
           }
         }
