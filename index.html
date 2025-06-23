@@ -185,9 +185,10 @@
             })),
             borderColor: 'rgb(75, 192, 192)',
             borderWidth: 1,
-            pointRadius: 2,
+            pointRadius: 1,  // 将这里从 2 改为 1，让数据点更小
             fill: false,
-            tension: 0.1
+            tension: 0.1,
+            showLine: false  // 如果你之前添加了这行来隐藏连线
           }]
         },
         options: {
