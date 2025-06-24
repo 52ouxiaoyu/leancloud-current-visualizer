@@ -7,6 +7,7 @@
 本项目采用ESP32作为核心控制器，INA219作为电流采集模块，实现一种低成本、可部署、可联网、可远程监控的功耗监测方案。
 
 ## 系统架构
+![image](https://github.com/user-attachments/assets/6faddd2f-a084-4eef-aba8-c526fadb376d)
 
 ### 硬件设计
 
