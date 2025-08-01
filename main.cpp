@@ -6,8 +6,8 @@
 #include "esp_task_wdt.h"
 
 // WiFi 配置
-const char* ssid = "desloc_testingwifi_google";
-const char* password = "ASDFGvcxz";
+const char* ssid = "testingwifi";
+const char* password = "123456";
 
 // LeanCloud 配置（中国区）
 const char* LEANCLOUD_API_URL = "https://bojar1gs.lc-cn-n1-shared.com/1.1/classes/CurrentData";
